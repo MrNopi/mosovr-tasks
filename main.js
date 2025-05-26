@@ -18,6 +18,7 @@ let guiParams = {
     convergence: 14.0
 };
 
+
 // Constructor
 function ShaderProgram(name, program) {
 
@@ -44,6 +45,56 @@ function updateStereoCam() {
     stereoCam.convergence = guiParams.convergence;
 }
 
+let orientationAngles = { yaw: 0, pitch: 0, roll: 0 };
+
+function updateRotationMatrix(azimuth, pitch, roll) {
+    const degToRad = Math.PI / 180;
+    const z = azimuth * degToRad;
+    const x = pitch * degToRad;
+    const y = roll * degToRad;
+
+    const cosZ = Math.cos(z), sinZ = Math.sin(z);
+    const cosX = Math.cos(x), sinX = Math.sin(x);
+    const cosY = Math.cos(y), sinY = Math.sin(y);
+
+    // Матриця обертання в порядку ZXY
+    const rotationMatrix = [
+        cosZ * cosY - sinZ * sinX * sinY, -cosX * sinZ, cosZ * sinY + cosY * sinZ * sinX, 0,
+        cosY * sinZ + cosZ * sinX * sinY,  cosZ * cosX, sinZ * sinY - cosZ * cosY * sinX, 0,
+        -cosX * sinY,                      sinX,       cosX * cosY,                      0,
+        0,                                 0,          0,                                 1
+    ];
+}
+
+
+// === WebSocket-з’єднання з Sensor Server ===
+const ws = new WebSocket("ws://192.168.0.176:8765/sensor/connect?type=android.sensor.orientation");
+
+ws.onmessage = function(event) {
+    try {
+        const data = JSON.parse(event.data);
+        console.log("Received data:", data);
+        if (data.values && data.values.length === 3) {
+            const [x, y, z] = data.values;
+            // updateRotationMatrix(azimuth, pitch, roll);
+
+            const degToRad = Math.PI / 180;
+            orientationAngles.yaw = x * degToRad;
+            orientationAngles.pitch = y * degToRad;
+            orientationAngles.roll = z * degToRad;
+            
+        }
+    } catch (e) {
+        console.error("Invalid data received:", e);
+    }
+};
+
+
+ws.onopen = () => console.log("Connected to Sensor Server");
+ws.onerror = err => console.error("WebSocket error:", err);
+
+
+
 function drawWebCamSurface() {
     if (iTextureWebCam < 0) return;
 
@@ -63,6 +114,63 @@ function drawWebCamSurface() {
 
     // Draw the webcam quad
     surfaceWebCam.Draw();
+}
+
+
+
+function rotationMatrixZ(angle) {
+    let c = Math.cos(angle), s = Math.sin(angle);
+    return [
+        [c, -s, 0, 0],
+        [s,  c, 0, 0],
+        [0,  0, 1, 0],
+        [0,  0, 0, 1]
+    ];
+}
+
+function rotationMatrixX(angle) {
+    let c = Math.cos(angle), s = Math.sin(angle);
+    return [
+        [1, 0,  0, 0],
+        [0, c, -s, 0],
+        [0, s,  c, 0],
+        [0, 0,  0, 1]
+    ];
+}
+
+function rotationMatrixY(angle) {
+    let c = Math.cos(angle), s = Math.sin(angle);
+    return [
+        [ c, 0, s, 0],
+        [ 0, 1, 0, 0],
+        [-s, 0, c, 0],
+        [ 0, 0, 0, 1]
+    ];
+}
+
+// Multiplies 4x4 matrices a and b
+function multiplyMatrices(a, b) {
+    let result = [];
+    for (let i = 0; i < 4; i++) {
+        result[i] = [];
+        for (let j = 0; j < 4; j++) {
+            result[i][j] = 0;
+            for (let k = 0; k < 4; k++) {
+                result[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
+    return result;
+}
+
+// Convert 2D array to Float32Array column-major for WebGL
+function mat4ToFloat32Array(m) {
+    return new Float32Array([
+        m[0][0], m[1][0], m[2][0], m[3][0],
+        m[0][1], m[1][1], m[2][1], m[3][1],
+        m[0][2], m[1][2], m[2][2], m[3][2],
+        m[0][3], m[1][3], m[2][3], m[3][3]
+    ]);
 }
 
 
@@ -86,8 +194,15 @@ function draw() {
     // Draw webcam surface at zero parallax
     drawWebCamSurface();
 
+    console.log("Orientation Angles:", orientationAngles);
     // Get the view matrix from the SimpleRotator object.
-    let modelView = spaceball.getViewMatrix();
+    let Rz = rotationMatrixZ(orientationAngles.yaw);
+    let Rx = rotationMatrixX(orientationAngles.pitch);
+    let Ry = rotationMatrixY(orientationAngles.roll);
+    let rotMat = multiplyMatrices(Rz, multiplyMatrices(Rx, Ry));
+    console.log("Rotation Matrix:", rotMat);
+    let modelView = m4.multiply(mat4ToFloat32Array(rotMat), spaceball.getViewMatrix());
+
 
     let rotateToPointZero = m4.axisRotation([0.707,0.707,0], 0.7);
     let translateToPointZero = m4.translation(0,0,-10);
