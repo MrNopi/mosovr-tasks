@@ -16,9 +16,26 @@
 <script src="./StereoCamera.js"></script>
 <script src="./Texture.js"></script>
 <script src="./main.js"></script>
+<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+<script src="https://cdn.rawgit.com/jeromeetienne/AR.js/2.2.1/aframe/build/aframe-ar.js"></script>
+  
 
 </head>
 <body onload="init()">
+
+
+ <a-scene embedded arjs>
+      <!-- Use your custom pattern file here -->
+      <a-marker type="pattern" url="AR_Photo.patt">
+        <!-- Example: 3D box. Replace with your own model or <a-image> for a picture -->
+        <a-image src= "test.jpg" width="5" height="5" position="0 0.5 0"></a-image>
+        <!-- Example: To use a 3D model (GLTF/GLB), use:
+        <a-entity gltf-model="url(yourmodel.glb)" scale="0.5 0.5 0.5"></a-entity>
+        -->
+      </a-marker>
+      <a-entity camera></a-entity>
+    </a-scene>
+
 
 <h2>A Cube with "Trackball" Mouse Rotation</h2>
 
