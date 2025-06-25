@@ -54,67 +54,42 @@ function Model(name) {
     }
 }
 
+ function CreateSurfaceData(data) {
+    const rMin = 0.1, rMax = 4;
+    const rCount = 100, tCount = 200;
+    const scale = 0.4;
+    const p = 8;
 
-function CreateSurfaceData(data)
-{
     let vertices = [];
-    let triangles = [];
+    let indices = [];
 
-    for (let i=0, ang = 0; i<72; i++, ang+=5) {
-        vertices.push( new Vertex( [Math.sin(deg2rad(ang)), 0, Math.cos(deg2rad(ang))] ));
-    }
+    
+    for (let i = 0; i <= rCount; i++) {
+        let r = rMin + (rMax - rMin) * i / rCount;
+        let z = (1 / r - r) / (1 + Math.pow(scale / r, p));
 
-    for (let i=0, ang = 0; i<72; i++, ang+=5) {
+        // let z = 1 / r - r;
+        
 
-        let v0ind = vertices.length;
-        vertices.push( new Vertex( [Math.sin(deg2rad(ang)), 1, Math.cos(deg2rad(ang))] ));
+        for (let j = 0; j <= tCount; j++) {
+            let theta = 2 * Math.PI * j / tCount;
+            let x = r * Math.cos(theta);
+            let y = r * Math.sin(theta);
 
-        // v0    v2 
-        //   o - o
-        //   | \ |
-        //   o - o
-        // v3     v1
-
-        if (i > 0)
-        {
-            let v1ind = v0ind - 72 -1;
-            let v2ind = v0ind - 1;
-            let v3ind = v0ind - 72
-
-            let trian = new Triangle(v0ind, v1ind, v2ind);
-            let trianInd = triangles.length;
-
-            triangles.push( trian );
-            vertices[v0ind].triangles.push(trianInd);
-            vertices[v1ind].triangles.push(trianInd);
-            vertices[v2ind].triangles.push(trianInd);
-
-            let trian2 = new Triangle(v0ind, v3ind, v1ind);
-            let trianInd2 = triangles.length;
-
-            triangles.push( trian2 );
-            vertices[v0ind].triangles.push(trianInd2);
-            vertices[v3ind].triangles.push(trianInd2);
-            vertices[v1ind].triangles.push(trianInd2);
-
+            vertices.push(x * scale, y * scale, z * scale);
         }
-
     }
 
-    data.verticesF32 = new Float32Array(vertices.length*3);
-    for (let i=0, len=vertices.length; i<len; i++)
-    {
-        data.verticesF32[i*3 + 0] = vertices[i].p[0];
-        data.verticesF32[i*3 + 1] = vertices[i].p[1];
-        data.verticesF32[i*3 + 2] = vertices[i].p[2];
+    for (let i = 0; i < rCount; i++) {
+        for (let j = 0; j < tCount; j++) {
+            let row1 = i * (tCount + 1);
+            let row2 = (i + 1) * (tCount + 1);
+
+            indices.push(row1 + j, row2 + j, row2 + j + 1);
+            indices.push(row1 + j, row2 + j + 1, row1 + j + 1);
+        }
     }
 
-    data.indicesU16 = new Uint16Array(triangles.length*3);
-    for (let i=0, len=triangles.length; i<len; i++)
-    {
-        data.indicesU16[i*3 + 0] = triangles[i].v0;
-        data.indicesU16[i*3 + 1] = triangles[i].v1;
-        data.indicesU16[i*3 + 2] = triangles[i].v2;
-    }
-
+    data.verticesF32 = new Float32Array(vertices);
+    data.indicesU16 = new Uint16Array(indices);
 }

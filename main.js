@@ -2,6 +2,7 @@
 
 let gl;                         // The webgl context.
 let surface;                    // A surface model
+let shProgramWebCam;            // A shader program for webcam
 let surfaceWebCam;              // A substrate for webcam image
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
@@ -182,17 +183,19 @@ function draw() {
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Update stereo camera parameters from UI
-    updateStereoCam();
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    shProgramWebCam.Use();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, iTextureWebCam);
 
-    // Update webcam texture
-    if (iTextureWebCam >= 0) {
-        gl.bindTexture(gl.TEXTURE_2D, iTextureWebCam);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0,0, gl.RGBA, gl.UNSIGNED_BYTE, video);
-    }
-
+     gl.uniform1i(shProgramWebCam.iSampler, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
     // Draw webcam surface at zero parallax
     drawWebCamSurface();
+
+    shProgram.Use();
+
+    updateStereoCam();
 
     console.log("Orientation Angles:", orientationAngles);
     // Get the view matrix from the SimpleRotator object.
@@ -214,7 +217,7 @@ function draw() {
     let matrLeftFrustum = stereoCam.calcLeftFrustum();
     gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, matrLeftFrustum);
 
-    let translateLeftEye = m4.translation(stereoCam.eyeSeparation/2, 0, 0);
+    let translateLeftEye = m4.translation(stereoCam.eyeSeparation/2, stereoCam.fov/2, stereoCam.near/10);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView );
     let matAccum1 = m4.multiply(translateLeftEye, matAccum0 );
@@ -241,7 +244,7 @@ function draw() {
     let matrRightFrustum = stereoCam.calcRightFrustum();
     gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, matrRightFrustum);
 
-    let translateRightEye = m4.translation(-stereoCam.eyeSeparation/2, 0, 0);
+    let translateRightEye = m4.translation(-stereoCam.eyeSeparation/2, -stereoCam.fov/2, -stereoCam.near/10);
 
     matAccum0 = m4.multiply(rotateToPointZero, modelView );
     matAccum1 = m4.multiply(translateRightEye, matAccum0 );
@@ -251,7 +254,11 @@ function draw() {
 
     // Draw filled polygons (cyan channel)
     gl.colorMask(false, true, true, true);
-    gl.uniform4fv(shProgram.iColor, colorPolygon );
+    gl.uniform4fv(shProgram.iColor, colorPolygon);
+    console.log("Eye separation:", stereoCam.eyeSeparation);
+    console.log("Convergence:", stereoCam.convergence);
+    console.log("FOV:", stereoCam.fov);
+    console.log("Near:", stereoCam.near);
     surface.Draw();
 
     // Draw wireframe (cyan channel)
@@ -283,30 +290,25 @@ function initGL() {
     
     CreateSurfaceData(data)
 
-    surface = new Model('Surface');
+    surface = new Model('Kiss surface');
     surface.BufferData(data.verticesF32, data.indicesU16);
 
-    // Create a fullscreen quad for webcam (two triangles)
-    let quadVertices = new Float32Array([
-        0, 0, 0,
-        1, 0, 0,
-        1, 1, 0,
-        0, 1, 0
-    ]);
-    let quadIndices = new Uint16Array([
-        0, 1, 2,
-        0, 2, 3
-    ]);
+   
     surfaceWebCam = new Model('SurfaceWebCam');
-    surfaceWebCam.BufferData(quadVertices, quadIndices);
+
+    let progWebCam = createProgram(gl, vertexShaderWebCamSource, fragmentShaderWebCamSource);
+    shProgramWebCam = new ShaderProgram('WebCam', progWebCam);
+    shProgramWebCam.Use();
+
+    shProgramWebCam.iSampler = gl.getUniformLocation(progWebCam, "video");
 
     stereoCam = new StereoCamera(
-        guiParams.eyeSeparation, // decimeters
-        guiParams.convergence,   // convergence distance
-        1.3,                     // aspect ratio of canvas
-        guiParams.fov,           // radians
-        guiParams.near,          // decimeters
-        20.0                     // decimeters
+         guiParams.eyeSeparation,     // decimeters
+        guiParams.convergence,   // decimeters
+        1.3,    // aspect ratio of canvas
+        guiParams.fov,    // radians
+        guiParams.near,    // decimeters
+        20.0    // decimeters
     );
 
     gl.enable(gl.DEPTH_TEST);
@@ -352,8 +354,8 @@ function init() {
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
-        gl = canvas.getContext("webgl");
-        if ( ! gl ) {
+        gl = canvas.getContext("webgl2");
+        if (!gl) {
             throw "Browser does not support WebGL";
         }
     }
@@ -387,28 +389,39 @@ function init() {
 
 
         video.play();
-    }  )
+    })
     .catch(function(err) {
         console.log(err.name + ": " + err.message);
-    }
-    );
+    });
 
-    setInterval(draw, 1/20);
+    setInterval(draw, 1/20 * 1000);
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     draw();
-
-    document.getElementById('eyeSeparation').addEventListener('input', function(e) {
-        guiParams.eyeSeparation = parseFloat(e.target.value);
-    });
-    document.getElementById('fov').addEventListener('input', function(e) {
-        guiParams.fov = parseFloat(e.target.value);
-    });
-    document.getElementById('near').addEventListener('input', function(e) {
-        guiParams.near = parseFloat(e.target.value);
-    });
-    document.getElementById('convergence').addEventListener('input', function(e) {
-        guiParams.convergence = parseFloat(e.target.value);
-    });
 }
+
+function updateEyeSepValue(val) {
+    document.getElementById('eyeSepValue').textContent = val;
+    guiParams.eyeSeparation = parseFloat(val);
+}
+function updateFovValue(val) {
+    document.getElementById('fovValue').textContent = val;
+    guiParams.fov = parseFloat(val);
+}
+function updateNearValue(val) {
+    document.getElementById('nearValue').textContent = val;
+    guiParams.near = parseFloat(val);
+}
+function updateConvValue(val) {
+    document.getElementById('convValue').textContent = val;
+    guiParams.convergence = parseFloat(val);
+}
+
+// Ініціалізувати значення при старті
+window.addEventListener('DOMContentLoaded', function() {
+    updateEyeSepValue(document.getElementById('eyeSeparation').value);
+    updateFovValue(document.getElementById('fov').value);
+    updateNearValue(document.getElementById('near').value);
+    updateConvValue(document.getElementById('convergence').value);
+});

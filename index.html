@@ -2,7 +2,7 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
-<title>PA#1</title>
+<title>PA#2</title>
 <style>
     body {
         background-color: #EEEEEE;
@@ -26,10 +26,26 @@
 (On a touch screen, you can use your finger.)</p>
 
 <div style="margin-bottom:10px;">
-  <label>Eye Separation: <input id="eyeSeparation" type="range" min="0.1" max="2.0" step="0.01" value="0.7"></label>
-  <label>FOV (rad): <input id="fov" type="range" min="0.1" max="1.5" step="0.01" value="0.4"></label>
-  <label>Near: <input id="near" type="range" min="1.0" max="20.0" step="0.1" value="8.0"></label>
-  <label>Convergence: <input id="convergence" type="range" min="5.0" max="30.0" step="0.1" value="14.0"></label>
+  <label>Eye Separation: 
+    <input id="eyeSeparation" type="range" min="0.1" max="2.0" step="0.01" value="0.7" 
+           oninput="updateEyeSepValue(this.value)">
+    <span id="eyeSepValue"></span>
+  </label>
+  <label>FOV (rad): 
+    <input id="fov" type="range" min="0.1" max="1.5" step="0.01" value="0.4" 
+           oninput="updateFovValue(this.value)">
+    <span id="fovValue"></span>
+  </label>
+  <label>Near: 
+    <input id="near" type="range" min="1.0" max="20.0" step="0.1" value="8.0" 
+           oninput="updateNearValue(this.value)">
+    <span id="nearValue"></span>
+  </label>
+  <label>Convergence: 
+    <input id="convergence" type="range" min="5.0" max="30.0" step="0.1" value="14.0" 
+           oninput="updateConvValue(this.value)">
+    <span id="convValue"></span>
+  </label>
 </div>
 
 
