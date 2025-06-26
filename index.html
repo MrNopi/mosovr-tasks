@@ -320,31 +320,31 @@ createSurface: function() {
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const marker = document.querySelector('#marker');
-      const surfaceEntity = document.getElementById('my-surface');
-      const infoPanel = document.getElementById('info');
-      const loadingPanel = document.getElementById('loading');
-      const instructionsPanel = document.getElementById('instructions');
-      
+      const arMarker = document.querySelector('#marker');
+      const modelEntity = document.getElementById('my-surface');
+      const statusPanel = document.getElementById('info');
+      const loaderPanel = document.getElementById('loading');
+      const helpPanel = document.getElementById('instructions');
+
       setTimeout(() => {
-        loadingPanel.style.display = 'none';
+        loaderPanel.style.display = 'none';
       }, 3000);
-      
-        surfaceEntity.setAttribute('scale', '0.35 0.35 0.35');
-        infoPanel.textContent = 'Looking for marker... (Desktop)';
-        console.log("Applied desktop settings");
-      
-      marker.addEventListener('markerFound', function() {
-        infoPanel.textContent = 'Marker detected! 😃';
-        infoPanel.className = 'info-panel marker-found';
-        instructionsPanel.style.display = 'none';
-        console.log('Marker found!');
+
+      modelEntity.setAttribute('scale', '0.35 0.35 0.35');
+      statusPanel.textContent = 'Waiting for marker... (Desktop)';
+      console.log('Desktop AR mode active');
+
+      arMarker.addEventListener('markerFound', function() {
+        statusPanel.textContent = 'Marker found! 😃';
+        statusPanel.className = 'info-panel marker-found';
+        helpPanel.style.display = 'none';
+        console.log('AR marker detected');
       });
-      
-      marker.addEventListener('markerLost', function() {
-        infoPanel.textContent = 'Marker lost 😢';
-        infoPanel.className = 'info-panel marker-lost';
-        instructionsPanel.style.display = 'block';
+
+      arMarker.addEventListener('markerLost', function() {
+        statusPanel.textContent = 'No marker 😢';
+        statusPanel.className = 'info-panel marker-lost';
+        helpPanel.style.display = 'block';
       });
     });
   </script>
