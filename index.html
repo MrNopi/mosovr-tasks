@@ -1,25 +1,352 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>AR.js Custom Pattern Example</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Control-task</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #eee; }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #2d2a4a 0%, #4e4376 100%);
+    }
+    
+    .info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: linear-gradient(135deg, rgba(34, 34, 64, 0.85), rgba(76, 67, 118, 0.85));
+      color: #e0e6f8;
+      padding: 15px 20px;
+      border-radius: 15px;
+      z-index: 999;
+      font-size: 16px;
+      font-weight: 500;
+      box-shadow: 0 8px 32px rgba(76, 67, 118, 0.25);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(200, 200, 255, 0.13);
+      transition: all 0.3s ease;
+    }
+    
+    .info-panel.marker-found {
+      background: linear-gradient(135deg, rgba(44, 183, 76, 0.85), rgba(100, 255, 180, 0.85));
+      color: #f0fff0;
+      transform: scale(1.05);
+    }
+    
+    .info-panel.marker-lost {
+      background: linear-gradient(135deg, rgba(200, 40, 80, 0.85), rgba(120, 30, 60, 0.85));
+      color: #ffeaea;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    .title {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, rgba(76, 67, 118, 0.15), rgba(34, 34, 64, 0.08));
+      color: #e0e6f8;
+      padding: 12px 18px;
+      border-radius: 12px;
+      z-index: 999;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(200, 200, 255, 0.18);
+    }
+    
+    .instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(76, 67, 118, 0.7), rgba(34, 34, 64, 0.7));
+      color: #e0e6f8;
+      padding: 12px 20px;
+      border-radius: 25px;
+      z-index: 999;
+      font-size: 14px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(200, 200, 255, 0.13);
+      max-width: 80%;
+    }
+    
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #e0e6f8;
+      font-size: 18px;
+      font-weight: 500;
+      text-align: center;
+      z-index: 998;
+    }
+    
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(200, 200, 255, 0.25);
+      border-radius: 50%;
+      border-top-color: #e0e6f8;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile adjustments */
+    @media only screen and (max-width: 600px) {
+      .info-panel {
+        font-size: 14px;
+        padding: 12px 16px;
+        top: 15px;
+        left: 15px;
+      }
+      
+      .title {
+        font-size: 12px;
+        padding: 10px 14px;
+        top: 15px;
+        right: 15px;
+      }
+      
+      .instructions {
+        font-size: 12px;
+        padding: 10px 16px;
+        bottom: 15px;
+        max-width: 90%;
+      }
+      
+      .loading {
+        font-size: 16px;
+      }
+    }
+    
+    @media only screen and (max-width: 480px) {
+      .info-panel {
+        font-size: 12px;
+        padding: 10px 14px;
+      }
+      
+      .title {
+        font-size: 11px;
+        padding: 8px 12px;
+      }
+      
+      .instructions {
+        font-size: 11px;
+        padding: 8px 14px;
+      }
+    }
   </style>
-  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://cdn.rawgit.com/jeromeetienne/AR.js/2.2.1/aframe/build/aframe-ar.js"></script>
+
+<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+<script src="https://cdn.rawgit.com/jeromeetienne/AR.js/2.2.1/aframe/build/aframe-ar.js"></script>
+
+
+<script>
+     AFRAME.registerComponent('multi-axis-rotation', {
+      schema: {
+        enabled: {type: 'boolean', default: true},
+        speed: {type: 'number', default: 0.3},
+        mode: {type: 'string', default: 'y'}
+      },
+
+      init: function() {
+        this.rotationValues = {
+          x: 0,
+          y: 0,
+          z: 0
+        };
+      },
+
+      tick: function(time, deltaTime) {
+        if (!this.data.enabled) return;
+
+        const dt = deltaTime / 1000;
+        const speed = this.data.speed;
+        const mode = this.data.mode;
+
+        if (mode.includes('x')) {
+          this.rotationValues.x += dt * speed;
+        }
+
+        if (mode.includes('y')) {
+          this.rotationValues.y += dt * speed;
+        }
+
+        if (mode.includes('z')) {
+          this.rotationValues.z += dt * speed;
+        }
+
+        this.el.object3D.rotation.x = this.rotationValues.x;
+        this.el.object3D.rotation.y = this.rotationValues.y;
+        this.el.object3D.rotation.z = this.rotationValues.z;
+      }
+    });
+
+    // --- Sievert Surface Component ---
+    AFRAME.registerComponent('my-surface', {
+      schema: {
+        uSteps:    { type: 'int',     default: 50 },
+        vSteps:    { type: 'int',     default: 50 },
+        H:         { type: 'number',  default: 1 },      // новый параметр H
+        P:         { type: 'number',  default: 1 },      // новый параметр P
+        color:     { type: 'color',   default: '#4fc3f7' },
+        wireframe: { type: 'boolean', default: false }
+      },
+
+      init: function() {
+        this.createSurface();
+      },
+
+      update: function(oldData) {
+        // Если изменились параметры сетки (uSteps, vSteps, H, P) — пересоздаём геометрию
+        if (this.mesh && (
+                oldData.uSteps !== this.data.uSteps ||
+                oldData.vSteps !== this.data.vSteps ||
+                oldData.H      !== this.data.H ||
+                oldData.P      !== this.data.P
+        )) {
+          this.el.removeObject3D('mesh');
+          this.createSurface();
+        } else if (this.mesh) {
+          // Если изменился только цвет или wireframe — меняем материал
+          if (oldData.color !== this.data.color) {
+            this.mesh.material.color.set(this.data.color);
+          }
+          if (oldData.wireframe !== this.data.wireframe) {
+            this.mesh.material.wireframe = this.data.wireframe;
+          }
+        }
+      },
+createSurface: function() {
+  const data = this.data;
+  const geometry = new THREE.BufferGeometry();
+
+  // Параметри поверхні
+  const rMin = 0.1, rMax = 4;
+  const rCount = data.uSteps || 60;
+  const tCount = data.vSteps || 60;
+  const scale = 0.4;
+  const p = 8;
+
+  let vertices = [];
+  let indices = [];
+
+  // Генерація вершин
+  for (let i = 0; i <= rCount; i++) {
+    let r = rMin + (rMax - rMin) * i / rCount;
+    let z = (1 / r - r) / (1 + Math.pow(scale / r, p));
+    for (let j = 0; j <= tCount; j++) {
+      let theta = 2 * Math.PI * j / tCount;
+      let x = r * Math.cos(theta);
+      let y = r * Math.sin(theta);
+      vertices.push(x * scale, y * scale, z * scale);
+    }
+  }
+
+  // Генерація індексів
+  for (let i = 0; i < rCount; i++) {
+    for (let j = 0; j < tCount; j++) {
+      let row1 = i * (tCount + 1);
+      let row2 = (i + 1) * (tCount + 1);
+      indices.push(row1 + j, row2 + j, row2 + j + 1);
+      indices.push(row1 + j, row2 + j + 1, row1 + j + 1);
+    }
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: data.color,
+    side: THREE.DoubleSide,
+    wireframe: data.wireframe
+  });
+
+  this.mesh = new THREE.Mesh(geometry, material);
+  this.el.setObject3D('mesh', this.mesh);
+},
+ remove: function() {
+        if (this.mesh) {
+          this.el.removeObject3D('mesh');
+        }
+      }
+    },
+  );
+  </script>
+
+
+
+
 </head>
 <body>
-  <a-scene embedded arjs>
-    <!-- Використовуйте ваш патерн -->
-    <a-marker type="pattern" url="pattern_photo.patt">
-      <!-- Замість HIRO.jpg вставте своє зображення або 3D-модель -->
-      <a-image src="test.jpg" width="2" height="2" position="0 1 0"></a-image>
-      <!--
-      <a-entity gltf-model="url(yourmodel.glb)" scale="0.5 0.5 0.5"></a-entity>
-      -->
+  <div class="loading" id="loading">Initializing AR Camera...</div>
+  <div class="title">AR Model</div>
+  <div class="info-panel" id="info">Looking for marker...</div>
+  <div class="instructions" id="instructions">Point your camera at the marker to see the 3D model</div>
+
+  <a-scene embedded vr-mode-ui="enabled: false;"
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
+    <a-marker type="pattern" preset="custom" url="./pattern_photo.patt" id="marker">
+      <a-entity id="my-surface"
+                position="0 0.5 0"
+                rotation="-90 0 0" 
+                scale="0.35 0.35 0.35"
+                my-surface="C: 1; uSteps: 50; vSteps: 50; color: #4fc3f7; wireframe: false"
+                multi-axis-rotation="enabled: true; speed: 0.3; mode: y">
+      </a-entity>
     </a-marker>
+
     <a-entity camera></a-entity>
   </a-scene>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const marker = document.querySelector('#marker');
+      const surfaceEntity = document.getElementById('my-surface');
+      const infoPanel = document.getElementById('info');
+      const loadingPanel = document.getElementById('loading');
+      const instructionsPanel = document.getElementById('instructions');
+      
+      setTimeout(() => {
+        loadingPanel.style.display = 'none';
+      }, 3000);
+      
+        surfaceEntity.setAttribute('scale', '0.35 0.35 0.35');
+        infoPanel.textContent = 'Looking for marker... (Desktop)';
+        console.log("Applied desktop settings");
+      
+      marker.addEventListener('markerFound', function() {
+        infoPanel.textContent = 'Marker detected! 😃';
+        infoPanel.className = 'info-panel marker-found';
+        instructionsPanel.style.display = 'none';
+        console.log('Marker found!');
+      });
+      
+      marker.addEventListener('markerLost', function() {
+        infoPanel.textContent = 'Marker lost 😢';
+        infoPanel.className = 'info-panel marker-lost';
+        instructionsPanel.style.display = 'block';
+      });
+    });
+  </script>
 </body>
 </html>
