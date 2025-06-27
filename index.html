@@ -200,13 +200,12 @@
       }
     });
 
-    // --- Sievert Surface Component ---
     AFRAME.registerComponent('my-surface', {
       schema: {
         uSteps:    { type: 'int',     default: 50 },
         vSteps:    { type: 'int',     default: 50 },
-        H:         { type: 'number',  default: 1 },      // новый параметр H
-        P:         { type: 'number',  default: 1 },      // новый параметр P
+        H:         { type: 'number',  default: 1 },      
+        P:         { type: 'number',  default: 1 },      
         color:     { type: 'color',   default: '#4fc3f7' },
         wireframe: { type: 'boolean', default: false }
       },
@@ -216,7 +215,6 @@
       },
 
       update: function(oldData) {
-        // Если изменились параметры сетки (uSteps, vSteps, H, P) — пересоздаём геометрию
         if (this.mesh && (
                 oldData.uSteps !== this.data.uSteps ||
                 oldData.vSteps !== this.data.vSteps ||
@@ -226,7 +224,6 @@
           this.el.removeObject3D('mesh');
           this.createSurface();
         } else if (this.mesh) {
-          // Если изменился только цвет или wireframe — меняем материал
           if (oldData.color !== this.data.color) {
             this.mesh.material.color.set(this.data.color);
           }
